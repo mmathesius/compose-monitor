@@ -34,23 +34,32 @@ def get_composes(composes_url, name="Fedora-ELN", version="Rawhide"):
 
 
 def compose_status(composes_url, compose):
-    """"""
-    print(f"Getting status for {compose = }")
+    """
+    returns: tuple(status, date) where
+        status is None, 'FINISHED', 'FINISHED_INCOMPLETE', etc.
+        and date is None or a string in the form of YYYYMMDD
+    """
 
-    weburl = urllib.request.urlopen("{}/{}/STATUS".format(composes_url, compose))
-    data = weburl.read()
-    encoding = weburl.info().get_content_charset("utf-8")
-    text = data.decode(encoding)
-    print("Status: {}".format(text.rstrip()))
+    try:
+        weburl = urllib.request.urlopen("{}/{}/STATUS".format(composes_url, compose))
+        data = weburl.read()
+        encoding = weburl.info().get_content_charset("utf-8")
+        status = data.decode(encoding).rstrip()
+    except Exception:
+        status = None
 
-    weburl = urllib.request.urlopen(
-        "{}/{}/compose/metadata/composeinfo.json".format(composes_url, compose)
-    )
-    data = weburl.read()
-    encoding = weburl.info().get_content_charset("utf-8")
-    composeattrs = json.loads(data.decode(encoding))
-    # print(f"Composeinfo: {composeattrs}")
-    print("Composedate: {}".format(composeattrs["payload"]["compose"]["date"]))
+    try:
+        weburl = urllib.request.urlopen(
+            "{}/{}/compose/metadata/composeinfo.json".format(composes_url, compose)
+        )
+        data = weburl.read()
+        encoding = weburl.info().get_content_charset("utf-8")
+        composeattrs = json.loads(data.decode(encoding))
+        composedate = composeattrs["payload"]["compose"]["date"]
+    except Exception:
+        composedate = None
+
+    return status, composedate
 
 
 if __name__ == "__main__":
@@ -59,16 +68,14 @@ if __name__ == "__main__":
     print(f"For {url =}:")
     composes = get_composes(url, "CentOS-Stream", "9")
     for c in composes:
-        try:
-            compose_status(url, c)
-        except Exception as e:
-            print("Unexpected error: {}".format(e))
+        print("Getting status for compose = {}".format(c))
+        status, date = compose_status(url, c)
+        print("status, date = {}, {}".format(status, date))
 
     url = "https://odcs.fedoraproject.org/composes/production"
     print(f"For {url =}:")
     composes = get_composes(url, "Fedora-ELN", "Rawhide")
     for c in composes:
-        try:
-            compose_status(url, c)
-        except Exception as e:
-            print("Unexpected error: {}".format(e))
+        print("Getting status for compose = {}".format(c))
+        status, date = compose_status(url, c)
+        print("status, date = {}, {}".format(status, date))
