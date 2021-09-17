@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import json
 import re
 import urllib.request
 
@@ -17,7 +18,8 @@ def get_composes(composes_url, name="Fedora-ELN", version="Rawhide"):
         "^({name}-{version}-[^/]*)".format(name=name, version=version)
     )
 
-    html = urllib.request.urlopen(composes_url).read()
+    weburl = urllib.request.urlopen(composes_url)
+    html = weburl.read()
     soup = Soup(html, "html.parser")
 
     comp_links = soup.find_all("a", href=compose_re)
@@ -31,12 +33,42 @@ def get_composes(composes_url, name="Fedora-ELN", version="Rawhide"):
     return sorted(comps, key=str.lower, reverse=True)
 
 
+def compose_status(composes_url, compose):
+    """"""
+    print(f"Getting status for {compose = }")
+
+    weburl = urllib.request.urlopen("{}/{}/STATUS".format(composes_url, compose))
+    data = weburl.read()
+    encoding = weburl.info().get_content_charset("utf-8")
+    text = data.decode(encoding)
+    print("Status: {}".format(text.rstrip()))
+
+    weburl = urllib.request.urlopen(
+        "{}/{}/compose/metadata/composeinfo.json".format(composes_url, compose)
+    )
+    data = weburl.read()
+    encoding = weburl.info().get_content_charset("utf-8")
+    composeattrs = json.loads(data.decode(encoding))
+    # print(f"Composeinfo: {composeattrs}")
+    print("Composedate: {}".format(composeattrs["payload"]["compose"]["date"]))
+
+
 if __name__ == "__main__":
 
-    url = "https://odcs.fedoraproject.org/composes/production"
-    composes = get_composes(url, "Fedora-ELN", "Rawhide")
-    print(f"{composes = }")
-
     url = "https://composes.stream.centos.org/production"
+    print(f"For {url =}:")
     composes = get_composes(url, "CentOS-Stream", "9")
-    print(f"{composes = }")
+    for c in composes:
+        try:
+            compose_status(url, c)
+        except Exception as e:
+            print("Unexpected error: {}".format(e))
+
+    url = "https://odcs.fedoraproject.org/composes/production"
+    print(f"For {url =}:")
+    composes = get_composes(url, "Fedora-ELN", "Rawhide")
+    for c in composes:
+        try:
+            compose_status(url, c)
+        except Exception as e:
+            print("Unexpected error: {}".format(e))
