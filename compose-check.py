@@ -2,18 +2,24 @@
 
 import click
 import datetime
+import jinja2
 import json
 import logging
+import os
+import pprint
 import re
 import urllib.request
+import yaml
 
 from bs4 import BeautifulSoup as Soup
+from copy import deepcopy
 
 
 logger = logging.getLogger(__name__)
+SCRIPTPATH = os.path.dirname(os.path.realpath(__file__))
 
 
-def get_composes(composes_url, name="Fedora-ELN", version="Rawhide"):
+def get_composes(composes_url, name, version):
     """
     Return list of available composes
 
@@ -103,15 +109,22 @@ def compose_status(composes_url, compose):
 )
 @click.option(
     "--input",
-    help="Input file containing status from previous check",
+    help="YAML input file containing status from previous check",
     type=click.Path(exists=True, readable=True),
 )
 @click.option(
     "--output",
-    help="Output file to contain status from this check",
+    help="YAMl output file to contain status from this check",
     type=click.Path(writable=True),
+    default="status.yaml",
 )
-def cli(debug, url, name, version, input, output):
+@click.option(
+    "--html",
+    help="HTML Output file to contain status from this check",
+    type=click.Path(writable=True),
+    # default="status.html",
+)
+def cli(debug, url, name, version, input, output, html):
     # alternate: --url "https://composes.stream.centos.org/production" --name "CentOS-Stream" --version "9"
 
     if debug:
@@ -124,12 +137,27 @@ def cli(debug, url, name, version, input, output):
     now = datetime.datetime.now()
     today = now.date()
 
-    logger.debug("Today is {}".format(str(today)))
-    logger.debug("Now is {}".format(now.strftime("%Y-%m-%d %H:%M:%S")))
+    results = {}
+    results["today"] = str(today)
+    results["now"] = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    latest_attempted = {"compose": None, "date": None}
-    latest_finished = {"compose": None, "date": None}
-    latest_incomplete = {"compose": None, "date": None}
+    logger.debug("Today is {}".format(results["today"]))
+    logger.debug("Now is {}".format(results["now"]))
+
+    old_results = None
+    if input:
+        with open(input, "r") as f:
+            old_results = yaml.safe_load(f)
+        logger.info("old YAML results loaded from {}".format(input))
+        logger.debug("old_results = {}".format(pprint.pformat(old_results)))
+
+    results["url"] = url
+    results["name"] = name
+    results["version"] = version
+
+    results["latest_attempted"] = {}
+    results["latest_finished"] = {}
+    results["latest_incomplete"] = {}
 
     logger.info(f"For {url = }, {name = }, {version = }")
     composes = get_composes(url, name, version)
@@ -155,7 +183,37 @@ def cli(debug, url, name, version, input, output):
         logger.info(
             "Compose {} status = {} date = {} age = {}".format(c, status, date, age)
         )
-        # if latest_attempt["compose"] is None:
+        comp_info = {
+            "compose": c,
+            "compose_url": "{}/{}/".format(url, c),
+            "status": status,
+            "date": date,
+            "age": age,
+        }
+
+        if not results["latest_attempted"]:
+            results["latest_attempted"] = deepcopy(comp_info)
+
+        if status == "FINISHED" and not results["latest_finished"]:
+            results["latest_finished"] = deepcopy(comp_info)
+
+        if status == "FINISHED_INCOMPLETE" and not results["latest_incomplete"]:
+            results["latest_incomplete"] = deepcopy(comp_info)
+
+    logger.debug("results = {}".format(pprint.pformat(results)))
+
+    if output:
+        with open(output, "w") as f:
+            yaml.safe_dump(results, f)
+        logger.info("YAML results saved to {}".format(output))
+
+    if html:
+        j2_env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(searchpath=SCRIPTPATH)
+        )
+        tmpl = j2_env.get_template("status.html.j2")
+        tmpl.stream(results=results).dump(html)
+        logger.info("HTML results written to {}".format(html))
 
 
 if __name__ == "__main__":
