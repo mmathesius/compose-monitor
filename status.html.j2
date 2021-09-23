@@ -1,9 +1,9 @@
 <html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Status of {{ results["name"] }}-{{ results["version"] }} composes from {{ results["url"] }}</title>
+    <title>Compose Status Report</title>
     <style>
-      h1, p {
+      p, h1, h2 {
         font-family: arial, sans-serif;
       }
 
@@ -25,8 +25,12 @@
     </style>
   </head>
   <body>
-    <h1>Status of {{ results["name"] }}-{{ results["version"] }} composes from {{ results["url"] }}</h1>
+    <h1>Compose Status Report</h1>
     <p>Status updated: {{ results["now"] }}</p>
+
+    {% for result in results["composes"] -%}
+
+    <h2>Status of <a href='{{ result["url"] }}'>{{ result["description"] }}</a></h2>
     <table>
       <thead>
         <tr>
@@ -38,36 +42,57 @@
       </thead>
       <tbody>
         <tr>
-          <th>Last attempted compose</th>
-          <th>
-            <a href="{{ results["latest_attempted"]["compose_url"] }}">
-              {{ results["latest_attempted"]["compose"] }}
-            </a>
-          </th>
-          <th>{{ results["latest_attempted"]["date"] }}</th>
-          <th>{{ results["latest_attempted"]["age"] }}</th>
-        </tr>
-        <tr>
           <th>Last finished compose</th>
+          {% if result["latest_finished"] %}
           <th>
-            <a href="{{ results["latest_finished"]["compose_url"] }}">
-              {{ results["latest_finished"]["compose"] }}
+            <a href="{{ result["latest_finished"]["url"] }}">
+              {{ result["latest_finished"]["id"] }}
             </a>
           </th>
-          <th>{{ results["latest_finished"]["date"] }}</th>
-          <th>{{ results["latest_finished"]["age"] }}</th>
+          <th>{{ result["latest_finished"]["date"] }}</th>
+          <th>{{ result["latest_finished"]["age"] }}</th>
+          {% else %}
+          <th>None</th>
+          <th>-</th>
+          <th>-</th>
+          {% endif %}
         </tr>
         <tr>
           <th>Last incomplete compose</th>
+          {% if result["latest_incomplete"] %}
           <th>
-            <a href="{{ results["latest_incomplete"]["compose_url"] }}">
-              {{ results["latest_incomplete"]["compose"] }}
+            <a href="{{ result["latest_incomplete"]["url"] }}">
+              {{ result["latest_incomplete"]["id"] }}
             </a>
           </th>
-          <th>{{ results["latest_incomplete"]["date"] }}</th>
-          <th>{{ results["latest_incomplete"]["age"] }}</th>
+          <th>{{ result["latest_incomplete"]["date"] }}</th>
+          <th>{{ result["latest_incomplete"]["age"] }}</th>
+          {% else %}
+          <th>None</th>
+          <th>-</th>
+          <th>-</th>
+          {% endif %}
+        </tr>
+        <tr>
+          <th>Last attempted compose</th>
+          {% if result["latest_attempted"] %}
+          <th>
+            <a href="{{ result["latest_attempted"]["url"] }}">
+              {{ result["latest_attempted"]["id"] }}
+            </a>
+          </th>
+          <th>{{ result["latest_attempted"]["date"] }}</th>
+          <th>{{ result["latest_attempted"]["age"] }}</th>
+          {% else %}
+          <th>None</th>
+          <th>-</th>
+          <th>-</th>
+          {% endif %}
         </tr>
       </tbody>
     </table>
+
+    {% endfor -%}
+
   </body>
 </html>

@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 SCRIPTPATH = os.path.dirname(os.path.realpath(__file__))
 
 
-def get_composes(composes_url, name, version):
+def get_compose_ids(composes_url, name, version):
     """
-    Return list of available composes
+    Return list with IDs of available composes
 
     :param composes_url: top level URL containing composes
     :param name: OS name for which to return composes
     :param version: OS version for which to return composes
-    :return: ordered list of composes, from newest to oldest
+    :return: ordered list of compose IDs, from newest to oldest
     """
 
     compose_re = re.compile(
@@ -39,13 +39,13 @@ def get_composes(composes_url, name, version):
 
     comp_links = soup.find_all("a", href=compose_re)
 
-    comps = []
+    ids = []
     for link in comp_links:
         match = re.search(compose_re, link["href"])
         group = match.group()
-        comps.append(group)
+        ids.append(group)
 
-    return sorted(comps, key=str.lower, reverse=True)
+    return sorted(ids, key=str.lower, reverse=True)
 
 
 def compose_status(composes_url, compose):
@@ -151,54 +151,60 @@ def cli(debug, url, name, version, input, output, html):
         logger.info("old YAML results loaded from {}".format(input))
         logger.debug("old_results = {}".format(pprint.pformat(old_results)))
 
-    results["url"] = url
-    results["name"] = name
-    results["version"] = version
+    results["composes"] = []
 
-    results["latest_attempted"] = {}
-    results["latest_finished"] = {}
-    results["latest_incomplete"] = {}
+    result = {}
+    result["url"] = url
+    result["name"] = name
+    result["version"] = version
+    result["description"] = "{}-{} composes".format(name, version)
+
+    result["latest_attempted"] = {}
+    result["latest_finished"] = {}
+    result["latest_incomplete"] = {}
 
     logger.info(f"For {url = }, {name = }, {version = }")
-    composes = get_composes(url, name, version)
-    # Note: list of composes is ordered from newest to oldest
-    for c in composes:
-        logger.debug("Getting status for compose = {}".format(c))
-        status, date = compose_status(url, c)
+    ids = get_compose_ids(url, name, version)
+    # Note: list of compose IDs is ordered from newest to oldest
+    for id in ids:
+        logger.debug("Getting status for compose = {}".format(id))
+        status, date = compose_status(url, id)
         if date is None:
-            logger.debug("No date, extracting from compose name {}".format(c))
+            logger.debug("No date, extracting from compose name {}".format(id))
             date_re = re.compile(
                 "^{name}-{version}-(\d{{8}})\..*$".format(name=name, version=version)
             )
-            match = re.search(date_re, c)
+            match = re.search(date_re, id)
             if match:
                 date = match.group(1)
-                logger.debug("Extracted date {} from compose name {}".format(date, c))
+                logger.debug("Extracted date {} from compose name {}".format(date, id))
             else:
-                logger.notice("Cannot extract date from compose name {}".format(c))
+                logger.notice("Cannot extract date from compose name {}".format(id))
                 next
 
         parsed_date = datetime.datetime.strptime(date, "%Y%m%d").date()
         age = (today - parsed_date).days
         logger.info(
-            "Compose {} status = {} date = {} age = {}".format(c, status, date, age)
+            "Compose {} status = {} date = {} age = {}".format(id, status, date, age)
         )
         comp_info = {
-            "compose": c,
-            "compose_url": "{}/{}/".format(url, c),
+            "id": id,
+            "url": "{}/{}/".format(url, id),
             "status": status,
             "date": date,
             "age": age,
         }
 
-        if not results["latest_attempted"]:
-            results["latest_attempted"] = deepcopy(comp_info)
+        if not result["latest_attempted"]:
+            result["latest_attempted"] = deepcopy(comp_info)
 
-        if status == "FINISHED" and not results["latest_finished"]:
-            results["latest_finished"] = deepcopy(comp_info)
+        if status == "FINISHED" and not result["latest_finished"]:
+            result["latest_finished"] = deepcopy(comp_info)
 
-        if status == "FINISHED_INCOMPLETE" and not results["latest_incomplete"]:
-            results["latest_incomplete"] = deepcopy(comp_info)
+        if status == "FINISHED_INCOMPLETE" and not result["latest_incomplete"]:
+            result["latest_incomplete"] = deepcopy(comp_info)
+
+    results["composes"].append(result)
 
     logger.debug("results = {}".format(pprint.pformat(results)))
 
