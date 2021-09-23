@@ -1,0 +1,20 @@
+defaults:
+  email_to:
+    - mmathesi@redhat.com
+  alert_days: 3
+  
+composes:
+  - description: CentOS Stream 9 Production Composes
+    url: https://composes.stream.centos.org/production
+    name: CentOS-Stream
+    version: "9"
+
+  - description: CentOS Stream 9 Development Composes
+    url: https://composes.stream.centos.org/development
+    name: CentOS-Stream
+    version: "9"
+
+  - description: Fedora ELN Composes
+    url: https://odcs.fedoraproject.org/composes/production
+    name: Fedora-ELN
+    version: Rawhide

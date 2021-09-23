@@ -8,6 +8,7 @@ import logging
 import os
 import pprint
 import re
+import sys
 import urllib.request
 import yaml
 
@@ -19,13 +20,13 @@ logger = logging.getLogger(__name__)
 SCRIPTPATH = os.path.dirname(os.path.realpath(__file__))
 
 
-def get_compose_ids(composes_url, name, version):
+def get_compose_ids(url, name, version):
     """
-    Return list with IDs of available composes
+    Return list of available compose IDs
 
-    :param composes_url: top level URL containing composes
-    :param name: OS name for which to return composes
-    :param version: OS version for which to return composes
+    :param url: top level URL containing composes
+    :param name: OS name for which to return compose IDs
+    :param version: OS version for which to return compose IDs
     :return: ordered list of compose IDs, from newest to oldest
     """
 
@@ -33,7 +34,7 @@ def get_compose_ids(composes_url, name, version):
         "^({name}-{version}-[^/]*)".format(name=name, version=version)
     )
 
-    weburl = urllib.request.urlopen(composes_url)
+    weburl = urllib.request.urlopen(url)
     html = weburl.read()
     soup = Soup(html, "html.parser")
 
@@ -48,19 +49,19 @@ def get_compose_ids(composes_url, name, version):
     return sorted(ids, key=str.lower, reverse=True)
 
 
-def compose_status(composes_url, compose):
+def get_compose_status(url, id):
     """
     Fetch the status of the specified compose.
 
-    :param composes_url: top level URL containing composes
-    :param compose: the compose for which to fetch the status
+    :param url: top level URL containing composes
+    :param id: the compose ID for which to fetch the status
     :return: 2-tuple of the form (status, date) where
              status is None, 'FINISHED', 'FINISHED_INCOMPLETE', etc.
              and date is None or a string in the form of YYYYMMDD
     """
 
     try:
-        weburl = urllib.request.urlopen("{}/{}/STATUS".format(composes_url, compose))
+        weburl = urllib.request.urlopen("{}/{}/STATUS".format(url, id))
         data = weburl.read()
         encoding = weburl.info().get_content_charset("utf-8")
         status = data.decode(encoding).rstrip()
@@ -69,7 +70,7 @@ def compose_status(composes_url, compose):
 
     try:
         weburl = urllib.request.urlopen(
-            "{}/{}/compose/metadata/composeinfo.json".format(composes_url, compose)
+            "{}/{}/compose/metadata/composeinfo.json".format(url, id)
         )
         data = weburl.read()
         encoding = weburl.info().get_content_charset("utf-8")
@@ -81,83 +82,24 @@ def compose_status(composes_url, compose):
     return status, composedate
 
 
-@click.command()
-@click.option(
-    "--debug",
-    is_flag=True,
-    help="Output a lot of debugging information",
-    show_default=True,
-    default=False,
-)
-@click.option(
-    "--url",
-    help="Top level URL containing composes",
-    show_default=True,
-    default="https://odcs.fedoraproject.org/composes/production",
-)
-@click.option(
-    "--name",
-    help="OS name for which to check composes",
-    show_default=True,
-    default="Fedora-ELN",
-)
-@click.option(
-    "--version",
-    help="OS version for which to check composes",
-    show_default=True,
-    default="Rawhide",
-)
-@click.option(
-    "--input",
-    help="YAML input file containing status from previous check",
-    type=click.Path(exists=True, readable=True),
-)
-@click.option(
-    "--output",
-    help="YAMl output file to contain status from this check",
-    type=click.Path(writable=True),
-    default="status.yaml",
-)
-@click.option(
-    "--html",
-    help="HTML Output file to contain status from this check",
-    type=click.Path(writable=True),
-    # default="status.html",
-)
-def cli(debug, url, name, version, input, output, html):
-    # alternate: --url "https://composes.stream.centos.org/production" --name "CentOS-Stream" --version "9"
+def get_compose_result(url, name, version, description, today):
+    """
+    Return dictionary with compose status
 
-    if debug:
-        logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
-        logger.setLevel(logging.DEBUG)
-        logger.debug("Debugging mode enabled")
-    else:
-        logging.basicConfig(level=logging.INFO)
-
-    now = datetime.datetime.now()
-    today = now.date()
-
-    results = {}
-    results["today"] = str(today)
-    results["now"] = now.strftime("%Y-%m-%d %H:%M:%S")
-
-    logger.debug("Today is {}".format(results["today"]))
-    logger.debug("Now is {}".format(results["now"]))
-
-    old_results = None
-    if input:
-        with open(input, "r") as f:
-            old_results = yaml.safe_load(f)
-        logger.info("old YAML results loaded from {}".format(input))
-        logger.debug("old_results = {}".format(pprint.pformat(old_results)))
-
-    results["composes"] = []
+    :param url: top level URL containing composes
+    :param name: OS name for compose
+    :param version: OS version for compose
+    :param description: OS version for compose
+    :return: dictionary with compose status
+    """
 
     result = {}
     result["url"] = url
     result["name"] = name
     result["version"] = version
-    result["description"] = "{}-{} composes".format(name, version)
+    result["description"] = (
+        description if description else "{}-{} composes".format(name, version)
+    )
 
     result["latest_attempted"] = {}
     result["latest_finished"] = {}
@@ -168,7 +110,7 @@ def cli(debug, url, name, version, input, output, html):
     # Note: list of compose IDs is ordered from newest to oldest
     for id in ids:
         logger.debug("Getting status for compose = {}".format(id))
-        status, date = compose_status(url, id)
+        status, date = get_compose_status(url, id)
         if date is None:
             logger.debug("No date, extracting from compose name {}".format(id))
             date_re = re.compile(
@@ -204,7 +146,116 @@ def cli(debug, url, name, version, input, output, html):
         if status == "FINISHED_INCOMPLETE" and not result["latest_incomplete"]:
             result["latest_incomplete"] = deepcopy(comp_info)
 
-    results["composes"].append(result)
+    return result
+
+
+@click.command()
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Output a lot of debugging information",
+    show_default=True,
+    default=False,
+)
+@click.option(
+    "--config",
+    help="YAML configuration file",
+    type=click.Path(exists=True, readable=True),
+)
+@click.option(
+    "--url",
+    help="Top level URL containing composes",
+)
+@click.option(
+    "--name",
+    help="OS name for which to check composes",
+)
+@click.option(
+    "--version",
+    help="OS version for which to check composes",
+)
+@click.option(
+    "--description",
+    help="Compose description",
+)
+@click.option(
+    "--input",
+    help="YAML input file containing status from previous check",
+    type=click.Path(exists=True, readable=True),
+)
+@click.option(
+    "--output",
+    help="YAMl output file to contain status from this check",
+    type=click.Path(writable=True),
+    default="status.yaml",
+)
+@click.option(
+    "--html",
+    help="HTML Output file to contain status from this check",
+    type=click.Path(writable=True),
+    # default="status.html",
+)
+def cli(debug, config, url, name, version, description, input, output, html):
+    if debug:
+        logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debugging mode enabled")
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    if config:
+        if url or name or version or description:
+            logger.critical(
+                "--url, --name, --version, and --description are ignored when --config is specified"
+            )
+            sys.exit(1)
+        with open(config, "r") as f:
+            conf = yaml.safe_load(f)
+    else:
+        if not (url and name and version):
+            logger.critical(
+                "Either --config OR --url, --name, and --version must be specified"
+            )
+            sys.exit(1)
+        conf = {
+            "composes": [
+                {
+                    "url": url,
+                    "name": name,
+                    "version": version,
+                    "description": description,
+                }
+            ]
+        }
+
+    now = datetime.datetime.now()
+    today = now.date()
+
+    results = {}
+    results["today"] = str(today)
+    results["now"] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    logger.debug("Today is {}".format(results["today"]))
+    logger.debug("Now is {}".format(results["now"]))
+
+    old_results = None
+    if input:
+        with open(input, "r") as f:
+            old_results = yaml.safe_load(f)
+        logger.info("old YAML results loaded from {}".format(input))
+        logger.debug("old_results = {}".format(pprint.pformat(old_results)))
+
+    results["composes"] = []
+
+    for compose in conf["composes"]:
+        result = get_compose_result(
+            compose["url"],
+            compose["name"],
+            compose["version"],
+            compose["description"],
+            today,
+        )
+        results["composes"].append(result)
 
     logger.debug("results = {}".format(pprint.pformat(results)))
 
