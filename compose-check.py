@@ -189,13 +189,7 @@ def get_compose_result(url, name, version, description, today):
     type=click.Path(writable=True),
     default="status.yaml",
 )
-@click.option(
-    "--html",
-    help="HTML Output file to contain status from this check",
-    type=click.Path(writable=True),
-    # default="status.html",
-)
-def cli(debug, config, url, name, version, description, input, output, html):
+def cli(debug, config, url, name, version, description, input, output):
     if debug:
         logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
         logger.setLevel(logging.DEBUG)
@@ -264,13 +258,26 @@ def cli(debug, config, url, name, version, description, input, output, html):
             yaml.safe_dump(results, f)
         logger.info("YAML results saved to {}".format(output))
 
-    if html:
-        j2_env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(searchpath=SCRIPTPATH)
+    render(results, tmpl_path=os.path.join(SCRIPTPATH, "templates"))
+
+
+def render(results, tmpl_path="templates", output_path="output", fmt="all"):
+    os.makedirs(output_path, exist_ok=True)
+
+    j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(tmpl_path))
+    templates = j2_env.list_templates(extensions="j2")
+    logging.debug("Templates to render found in {}: {}".format(tmpl_path, templates))
+    if fmt != "all":
+        fmtlist = fmt.split(",")
+        templates = [name for name in templates if name.split(".")[-2] in fmtlist]
+    for tmpl_name in templates:
+        tmpl = j2_env.get_template(tmpl_name)
+        out = os.path.join(
+            output_path,
+            tmpl_name[:-3],
         )
-        tmpl = j2_env.get_template("status.html.j2")
-        tmpl.stream(results=results).dump(html)
-        logger.info("HTML results written to {}".format(html))
+        tmpl.stream(results=results).dump(out)
+        logger.info("{} results written to {}".format(tmpl_name, out))
 
 
 if __name__ == "__main__":
