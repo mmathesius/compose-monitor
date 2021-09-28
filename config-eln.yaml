@@ -1,0 +1,10 @@
+defaults:
+  email_to:
+    - mmathesi@redhat.com
+  alert_days: 3
+  
+composes:
+  - description: Fedora ELN Composes
+    url: https://odcs.fedoraproject.org/composes/production
+    name: Fedora-ELN
+    version: Rawhide
