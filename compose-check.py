@@ -149,6 +149,80 @@ def get_compose_result(url, name, version, description, today):
     return result
 
 
+def find_compose_result(compose, results):
+    """
+    Find result in `results` that matches `url`, `name`, and `version` from `compose`
+
+    :param compose:
+    :param results:
+    :return: matching compose entry from `results`, else None
+    """
+    if results is None:
+        return None
+
+    for comp in results["composes"]:
+        if (
+            comp["url"] == compose["url"]
+            and comp["name"] == compose["name"]
+            and comp["version"] == compose["version"]
+        ):
+            return comp
+
+    return None
+
+
+def alerts(conf, results, old_results):
+    """
+    Send alerts as per configuration
+
+    :param conf: dictionary containing configuration
+    :param results: status results for configured composes
+    :param old_results: status results for configured composes from previous run
+    """
+    logger.info("Sending alerts")
+
+    for compose in conf["composes"]:
+        email_to = compose.get("email_to", None)
+        if email_to is None:
+            try:
+                email_to = conf["defaults"]["email_to"]
+            except:
+                pass
+        logger.debug(
+            "E-mail recipients for {} compose: {}".format(
+                compose["description"], email_to
+            )
+        )
+        if not email_to:
+            logger.debug("No e-mail recipients; skipping alerts")
+            continue
+
+        logger.debug("Looking for compose: {}".format(compose))
+        result = find_compose_result(compose, results)
+        logger.debug("Current result finding: {}".format(result))
+        old_result = find_compose_result(compose, old_results)
+        logger.debug("Old result finding: {}".format(old_result))
+
+
+def render(results, tmpl_path="templates", output_path="output", fmt="all"):
+    os.makedirs(output_path, exist_ok=True)
+
+    j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(tmpl_path))
+    templates = j2_env.list_templates(extensions="j2")
+    logging.debug("Templates to render found in {}: {}".format(tmpl_path, templates))
+    if fmt != "all":
+        fmtlist = fmt.split(",")
+        templates = [name for name in templates if name.split(".")[-2] in fmtlist]
+    for tmpl_name in templates:
+        tmpl = j2_env.get_template(tmpl_name)
+        out = os.path.join(
+            output_path,
+            tmpl_name[:-3],
+        )
+        tmpl.stream(results=results).dump(out)
+        logger.info("{} results written to {}".format(tmpl_name, out))
+
+
 @click.command()
 @click.option(
     "--debug",
@@ -253,31 +327,14 @@ def cli(debug, config, url, name, version, description, input, output):
 
     logger.debug("results = {}".format(pprint.pformat(results)))
 
+    alerts(conf, results, old_results)
+
     if output:
         with open(output, "w") as f:
             yaml.safe_dump(results, f)
         logger.info("YAML results saved to {}".format(output))
 
     render(results, tmpl_path=os.path.join(SCRIPTPATH, "templates"))
-
-
-def render(results, tmpl_path="templates", output_path="output", fmt="all"):
-    os.makedirs(output_path, exist_ok=True)
-
-    j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(tmpl_path))
-    templates = j2_env.list_templates(extensions="j2")
-    logging.debug("Templates to render found in {}: {}".format(tmpl_path, templates))
-    if fmt != "all":
-        fmtlist = fmt.split(",")
-        templates = [name for name in templates if name.split(".")[-2] in fmtlist]
-    for tmpl_name in templates:
-        tmpl = j2_env.get_template(tmpl_name)
-        out = os.path.join(
-            output_path,
-            tmpl_name[:-3],
-        )
-        tmpl.stream(results=results).dump(out)
-        logger.info("{} results written to {}".format(tmpl_name, out))
 
 
 if __name__ == "__main__":

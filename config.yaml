@@ -8,6 +8,9 @@ composes:
     url: https://composes.stream.centos.org/production
     name: CentOS-Stream
     version: "9"
+    email_to:
+      - merlinm@redhat.com
+    alert_days: 0
 
   - description: CentOS Stream 9 Development Composes
     url: https://composes.stream.centos.org/development
@@ -18,3 +21,4 @@ composes:
     url: https://odcs.fedoraproject.org/composes/production
     name: Fedora-ELN
     version: Rawhide
+    email_to: []
