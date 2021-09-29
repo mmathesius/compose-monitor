@@ -43,7 +43,7 @@
       <tbody>
         <tr>
           <th>Last finished compose</th>
-          {% if result["latest_finished"] %}
+          {% if result["latest_finished"] -%}
           <th>
             <a href="{{ result["latest_finished"]["url"] }}">
               {{ result["latest_finished"]["id"] }}
@@ -51,15 +51,15 @@
           </th>
           <th>{{ result["latest_finished"]["date"] }}</th>
           <th>{{ result["latest_finished"]["age"] }}</th>
-          {% else %}
+          {% else -%}
           <th>None</th>
           <th>-</th>
           <th>-</th>
-          {% endif %}
+          {% endif -%}
         </tr>
         <tr>
           <th>Last incomplete compose</th>
-          {% if result["latest_incomplete"] %}
+          {% if result["latest_incomplete"] -%}
           <th>
             <a href="{{ result["latest_incomplete"]["url"] }}">
               {{ result["latest_incomplete"]["id"] }}
@@ -67,15 +67,15 @@
           </th>
           <th>{{ result["latest_incomplete"]["date"] }}</th>
           <th>{{ result["latest_incomplete"]["age"] }}</th>
-          {% else %}
+          {% else -%}
           <th>None</th>
           <th>-</th>
           <th>-</th>
-          {% endif %}
+          {% endif -%}
         </tr>
         <tr>
           <th>Last attempted compose</th>
-          {% if result["latest_attempted"] %}
+          {% if result["latest_attempted"] -%}
           <th>
             <a href="{{ result["latest_attempted"]["url"] }}">
               {{ result["latest_attempted"]["id"] }}
@@ -83,11 +83,11 @@
           </th>
           <th>{{ result["latest_attempted"]["date"] }}</th>
           <th>{{ result["latest_attempted"]["age"] }}</th>
-          {% else %}
+          {% else -%}
           <th>None</th>
           <th>-</th>
           <th>-</th>
-          {% endif %}
+          {% endif -%}
         </tr>
       </tbody>
     </table>

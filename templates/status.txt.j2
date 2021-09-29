@@ -1,0 +1,21 @@
+Compose Status Report
+Status updated: {{ results["now"] }}
+{% for result in results["composes"] -%}
+===
+Compose: {{ result["description"] }} <{{ result["url"] }}>
+Last finished: {% if result["latest_finished"] -%}
+{{ result["latest_finished"]["id"] }} <{{ result["latest_finished"]["url"] }}> {{ result["latest_finished"]["date"] }} {{ result["latest_finished"]["age"] }}
+{% else -%}
+None <> - -
+{% endif -%}
+Last incomplete: {% if result["latest_incomplete"] -%}
+{{ result["latest_incomplete"]["id"] }} <{{ result["latest_incomplete"]["url"] }}> {{ result["latest_incomplete"]["date"] }} {{ result["latest_incomplete"]["age"] }}
+{% else -%}
+None <> - -
+{% endif -%}
+Last attempted: {% if result["latest_attempted"] -%}
+{{ result["latest_attempted"]["id"] }} <{{ result["latest_attempted"]["url"] }}> {{ result["latest_attempted"]["date"] }} {{ result["latest_attempted"]["age"] }}
+{% else -%}
+None <> - -
+{% endif -%}
+{% endfor -%}
