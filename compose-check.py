@@ -188,6 +188,27 @@ def get_compose_config_prop(prop, conf, compose):
     return val
 
 
+def send_email(sender, to, subject, body):
+    """
+    :param sender:
+    :param to: list of e-mail recipients
+    :param subject:
+    :param body:
+    """
+    logger.debug("Sending e-mail from {} to {}".format(sender, to))
+    logger.debug("Subject: {}".format(subject))
+    logger.debug("Body: {}".format(body))
+
+    cmd = ["mail"]
+    cmd.extend(["-S", "from="+sender])
+    cmd.extend(["-r", sender])
+    cmd.extend(["-s", subject])
+    cmd.extend([",".join(to)])
+
+    logger.debug("Command to send email: {}".format(cmd))
+    # subprocess.run(cmd, input=body.encode("utf-8"))
+
+
 def send_alert(result, alert_days, email_sender, email_to, extra=None):
     logger.info(
         "Sending compose {} alert to {} from {}".format(
@@ -229,8 +250,7 @@ Latest attempted compose was {latest_attempted_id} on {latest_attempted_date} ({
         **fmt
     )
 
-    logger.info("Subject: {}".format(subject))
-    logger.info("Body: {}".format(message))
+    send_email(email_sender, email_to, subject, message)
 
 
 def alerts(conf, results, old_results):
