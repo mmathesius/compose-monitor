@@ -153,8 +153,8 @@ def find_compose_result(compose, results):
     """
     Find result in `results` that matches `url`, `name`, and `version` from `compose`
 
-    :param compose:
-    :param results:
+    :param compose: dict containing compose-specific configuration
+    :param results: dict containing all compose results
     :return: matching compose entry from `results`, else None
     """
     if results is None:
@@ -171,6 +171,23 @@ def find_compose_result(compose, results):
     return None
 
 
+def get_compose_config_prop(prop, conf, compose):
+    """
+    Get a compose configuration property, also checking the defaults.
+
+    :param prop: property name to get
+    :param conf: dict containing configuration
+    :param compose: dict containing compose-specific configuration
+    """
+    val = compose.get(prop, None)
+    if val is None:
+        try:
+            val = conf["defaults"][prop]
+        except:
+            pass
+    return val
+
+
 def alerts(conf, results, old_results):
     """
     Send alerts as per configuration
@@ -182,20 +199,15 @@ def alerts(conf, results, old_results):
     logger.info("Sending alerts")
 
     for compose in conf["composes"]:
-        email_to = compose.get("email_to", None)
-        if email_to is None:
-            try:
-                email_to = conf["defaults"]["email_to"]
-            except:
-                pass
-        logger.debug(
-            "E-mail recipients for {} compose: {}".format(
-                compose["description"], email_to
-            )
-        )
+        logger.info("Processing alerts for {} compose".format(compose["description"]))
+        email_to = get_compose_config_prop("email_to", conf, compose)
+        logger.info("E-mail recipients: {}".format(email_to))
         if not email_to:
-            logger.debug("No e-mail recipients; skipping alerts")
+            logger.info("No e-mail recipients; skipping alerts")
             continue
+
+        alert_days = get_compose_config_prop("alert_days", conf, compose)
+        logger.info("Alert days: {}".format(alert_days))
 
         logger.debug("Looking for compose: {}".format(compose))
         result = find_compose_result(compose, results)
