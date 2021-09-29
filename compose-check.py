@@ -179,13 +179,58 @@ def get_compose_config_prop(prop, conf, compose):
     :param conf: dict containing configuration
     :param compose: dict containing compose-specific configuration
     """
-    val = compose.get(prop, None)
+    val = compose.get(prop)
     if val is None:
         try:
             val = conf["defaults"][prop]
         except:
             pass
     return val
+
+
+def send_alert(result, alert_days, email_sender, email_to, extra=None):
+    logger.info(
+        "Sending compose {} alert to {} from {}".format(
+            result["description"], email_to, email_sender
+        )
+    )
+
+    fmt = {}
+    fmt["description"] = result["description"]
+    fmt["alert_days"] = alert_days
+
+    for what in ["latest_attempted", "latest_finished", "latest_incomplete"]:
+        for prop in ["age", "date", "id", "url"]:
+            fmt[what + "_" + prop] = result[what].get(prop, "unknown-" + prop)
+
+    if extra:
+        fmt["extra"] = "\nAdditional details:\n{}\n".format(extra)
+    else:
+        fmt["extra"] = ""
+
+    subject = "[COMPOSE FAILURE] {description} has not finished for {latest_finished_age} days".format(
+        **fmt
+    )
+    message = """Greetings.
+
+{description} has not finished successfully since {latest_finished_date} ({latest_finished_age} days ago)."
+
+You are receiving this message because the configured alert threshold of {alert_days} days has been reached.
+
+Latest finished compose was {latest_finished_id} on {latest_finished_date} ({latest_finished_age} days ago).
+    Link: {latest_finished_url}
+
+Latest incomplete compose was {latest_incomplete_id} on {latest_incomplete_date} ({latest_incomplete_age} days ago).
+    Link: {latest_incomplete_url}
+
+Latest attempted compose was {latest_attempted_id} on {latest_attempted_date} ({latest_attempted_age} days ago).
+    Link: {latest_attempted_url}
+{extra}""".format(
+        **fmt
+    )
+
+    logger.info("Subject: {}".format(subject))
+    logger.info("Body: {}".format(message))
 
 
 def alerts(conf, results, old_results):
@@ -198,22 +243,45 @@ def alerts(conf, results, old_results):
     """
     logger.info("Sending alerts")
 
+    today = results["date"]
+
     for compose in conf["composes"]:
-        logger.info("Processing alerts for {} compose".format(compose["description"]))
+        logger.info("Processing alert for {} compose".format(compose["description"]))
         email_to = get_compose_config_prop("email_to", conf, compose)
         logger.info("E-mail recipients: {}".format(email_to))
         if not email_to:
-            logger.info("No e-mail recipients; skipping alerts")
+            logger.info("No e-mail recipients; skipping")
             continue
-
-        alert_days = get_compose_config_prop("alert_days", conf, compose)
-        logger.info("Alert days: {}".format(alert_days))
 
         logger.debug("Looking for compose: {}".format(compose))
         result = find_compose_result(compose, results)
         logger.debug("Current result finding: {}".format(result))
         old_result = find_compose_result(compose, old_results)
         logger.debug("Old result finding: {}".format(old_result))
+
+        alert_days = get_compose_config_prop("alert_days", conf, compose)
+
+        if result["latest_finished"] and result["latest_finished"]["age"] < alert_days:
+            logger.info(
+                "Alert threshold of {} days has not been reached; skipping".format(
+                    alert_days
+                )
+            )
+            continue
+
+        if old_result and "alert_date" in old_result:
+            alert_date = old_result["alert_date"]
+        else:
+            alert_date = "00000000"
+
+        if alert_date < today:
+            email_sender = get_compose_config_prop("email_sender", conf, compose)
+            extra = get_compose_config_prop("extra", conf, compose)
+            send_alert(result, alert_days, email_sender, email_to, extra)
+        else:
+            logger.info("Alert already sent for today")
+
+        result["alert_date"] = today
 
 
 def render(results, tmpl_path="templates", output_path="output", fmt="all"):
@@ -312,10 +380,10 @@ def cli(debug, config, url, name, version, description, input, output):
     today = now.date()
 
     results = {}
-    results["today"] = str(today)
+    results["date"] = today.strftime("%Y%m%d")
     results["now"] = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    logger.debug("Today is {}".format(results["today"]))
+    logger.debug("Today is {}".format(results["date"]))
     logger.debug("Now is {}".format(results["now"]))
 
     old_results = None

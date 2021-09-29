@@ -1,15 +1,23 @@
 defaults:
+  email_sender: Compose Alert <compose-alert@centos.org>
   email_to:
     - mmathesi@redhat.com
   alert_days: 3
   
 composes:
-  - description: CentOS Stream 9 Production Composes
+  - description: CentOS Stream 9 Production Compose
     url: https://composes.stream.centos.org/production
     name: CentOS-Stream
     version: "9"
+    email_to:
+      - merlinm@redhat.com
+    alert_days: 0
+    extra: |-
+        Jenkins pipeline: https://jenkins-jenkins-releng-ops.apps.stream.rdu2.redhat.com/job/stream9-prod-compose/
 
-  - description: CentOS Stream 9 Development Composes
+  - description: CentOS Stream 9 Development Compose
     url: https://composes.stream.centos.org/development
     name: CentOS-Stream
     version: "9"
+    extra: |-
+        Jenkins pipeline: https://jenkins-jenkins-releng-ops.apps.stream.rdu2.redhat.com/job/stream9-dev-compose/
