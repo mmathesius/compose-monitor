@@ -8,6 +8,7 @@ import logging
 import os
 import pprint
 import re
+import subprocess
 import sys
 import urllib.request
 import yaml
@@ -200,13 +201,13 @@ def send_email(sender, to, subject, body):
     logger.debug("Body: {}".format(body))
 
     cmd = ["mail"]
-    cmd.extend(["-S", "from="+sender])
+    cmd.extend(["-S", "from=" + sender])
     cmd.extend(["-r", sender])
     cmd.extend(["-s", subject])
     cmd.extend([",".join(to)])
 
     logger.debug("Command to send email: {}".format(cmd))
-    # subprocess.run(cmd, input=body.encode("utf-8"))
+    subprocess.run(cmd, input=body.encode("utf-8"))
 
 
 def send_alert(result, alert_days, email_sender, email_to, extra=None):
