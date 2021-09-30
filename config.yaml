@@ -1,17 +1,47 @@
+---
+# defaults:
+# Default alerting properties
+# This is a dictonary of the default values to use for generating
+# alerts. The properties can be overridden for specific composes (below)
+# by providing them as properties there.
 defaults:
+  # email_sender:
+  # String to use as the sender for alert e-mail messages.
   email_sender: Compose Alert <compose-alert@centos.org>
+  # email_to:
+  # List of e-mail addresses to receive alert e-mail messages. If
+  # list is empty, no alerts will be sent.
   email_to:
+    # - centos-stream-releng@redhat.com
     - mmathesi@redhat.com
+  # alert_days:
+  # Number of days a compose is allowed to fail before alerts are sent.
   alert_days: 3
-  
+
+# composes:
+# List of composes to be monitored. Each list entry is a dictonary of
+# properties identifying and describing a specific compose. The combination
+# of compose `url`, `name`, and `version` is assumed to uniquely identify
+# each compose in the list below.
 composes:
+    # description:
+    # String description for this compose.
   - description: CentOS Stream 9 Production Compose
+    # url:
+    # URL to ODCS directory containing this compose.
     url: https://composes.stream.centos.org/production
+    # name:
+    # The ODCS name identifying this compose.
     name: CentOS-Stream
+    # version:
+    # The ODCS version identifying this compose.
     version: "9"
-    email_to:
-      - merlinm@redhat.com
+    # alert_days:
+    # Overrides default value for number of days this compose is allowed to fail
+    # before alerts are sent.
     alert_days: 0
+    # extra:
+    # Additional text to be appended to alert e-mails for this compose.
     extra: |-
         Jenkins pipeline: https://jenkins-jenkins-releng-ops.apps.stream.rdu2.redhat.com/job/stream9-prod-compose/
 
@@ -26,3 +56,9 @@ composes:
     url: https://odcs.fedoraproject.org/composes/production
     name: Fedora-ELN
     version: Rawhide
+    # email_to:
+    # Overrides default list of e-mail addresses to receive alert e-mail
+    # messages for this compose. If list is empty, no alerts will be sent.
+    #
+    # email_to:
+    #  - eln-releng@redhat.com
