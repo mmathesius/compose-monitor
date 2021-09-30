@@ -191,6 +191,8 @@ def get_compose_config_prop(prop, conf, compose):
 
 def send_email(sender, to, subject, body):
     """
+    Send an e-mail message
+
     :param sender:
     :param to: list of e-mail recipients
     :param subject:
@@ -211,6 +213,15 @@ def send_email(sender, to, subject, body):
 
 
 def send_alert(result, alert_days, email_sender, email_to, extra=None):
+    """
+    Generate and send an alert for the provided compose result
+
+    :param result: dict of compose status result properties
+    :param alert_days: threshold for number of days before alerting
+    :param email_sender: e-mail sender
+    :param email_to: list of e-mail recipients
+    :param extra: optional extra text to include in alert e-mail
+    """
     logger.info(
         "Sending compose {} alert to {} from {}".format(
             result["description"], email_to, email_sender
@@ -306,6 +317,14 @@ def alerts(conf, results, old_results):
 
 
 def render(results, tmpl_path="templates", output_path="output", fmt="all"):
+    """
+    Render results using jinja2 templates
+
+    :param results: status results for configured composes
+    :param tmpl_path: directory containing jinka2 templates
+    :param output_path: directory in which to write rendered files
+    :param fmt: comma separated string of template suffixes to render, or "all"
+    """
     os.makedirs(output_path, exist_ok=True)
 
     j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(tmpl_path))
