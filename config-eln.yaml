@@ -1,9 +1,10 @@
+---
 defaults:
   email_sender: Compose Alert <compose-alert@centos.org>
   email_to:
-    - mmathesi@redhat.com
+    - centos-stream-releng@redhat.com
   alert_days: 3
-  
+
 composes:
   - description: Fedora ELN Compose
     url: https://odcs.fedoraproject.org/composes/production
